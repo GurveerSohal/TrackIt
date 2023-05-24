@@ -6,13 +6,14 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 // writes the value v as json to the stream w
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
 	return json.NewEncoder(w).Encode(v)
 }
 
@@ -44,7 +45,12 @@ type APIServer struct {
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
+	// TO DO reroute it to account
+	// router.HandleFunc("/", makeHTTPHandlerFunc(s.handleAccount))
+
 	router.HandleFunc("/account", makeHTTPHandlerFunc(s.handleAccount))
+
+	router.HandleFunc("/account/{uuid}", makeHTTPHandlerFunc(s.handleGetAccount))
 
 	log.Println("JSON API server running on port: ", s.listenAddr)
 
@@ -69,7 +75,19 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	id, err := uuid.Parse(mux.Vars(r)["uuid"])
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	// TO DO check for a user in a database
+
+	return WriteJSON(w, http.StatusOK, &Account{
+		ID:       id,
+		Username: "dummy",
+		Email:    "user",
+	})
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
