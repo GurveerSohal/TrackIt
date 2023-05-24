@@ -77,7 +77,7 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
 	id, err := uuid.Parse(mux.Vars(r)["uuid"])
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println("error when parsing uuid", err.Error())
 		return err
 	}
 
