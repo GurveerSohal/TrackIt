@@ -10,36 +10,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// writes the value v as json to the stream w
-func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
-}
-
-// a type (which is the function signature for our handler functions)
-// we need this because we return an error, but router.HandleFunc
-// takes a function which doesn't return an error
-type apiFunc func(http.ResponseWriter, *http.Request) error
-
-// this takes our apiFunc, and returns a function that will call it
-// and handle the error, but the signature will match http.HandlerFunc
-func makeHTTPHandlerFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := f(w, r); err != nil {
-			// TO DO
-			// later we can change our error and switch and write an appropriate error code
-			WriteJSON(w, http.StatusBadRequest, APIError{Error: err.Error()})
-		}
-	}
-}
-
 type APIError struct {
 	Error string
 }
 
 type APIServer struct {
 	listenAddr string
+	store      Storage
 }
 
 func (s *APIServer) Run() {
@@ -57,8 +34,11 @@ func (s *APIServer) Run() {
 	http.ListenAndServe(s.listenAddr, router)
 }
 
-func NewAPIServer(listenAddr string) *APIServer {
-	return &APIServer{listenAddr: listenAddr}
+func NewAPIServer(listenAddr string, store Storage) *APIServer {
+	return &APIServer{
+		listenAddr: listenAddr,
+		store:      store,
+	}
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -96,4 +76,28 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
 	return nil
+}
+
+// writes the value v as json to the stream w
+func WriteJSON(w http.ResponseWriter, status int, v any) error {
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(v)
+}
+
+// a type (which is the function signature for our handler functions)
+// we need this because we return an error, but router.HandleFunc
+// takes a function which doesn't return an error
+type apiFunc func(http.ResponseWriter, *http.Request) error
+
+// this takes our apiFunc, and returns a function that will call it
+// and handle the error, but the signature will match http.HandlerFunc
+func makeHTTPHandlerFunc(f apiFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := f(w, r); err != nil {
+			// TO DO
+			// later we can change our error and switch and write an appropriate error code
+			WriteJSON(w, http.StatusBadRequest, APIError{Error: err.Error()})
+		}
+	}
 }
