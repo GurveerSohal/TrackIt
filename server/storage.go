@@ -46,7 +46,7 @@ func (s *PostgresStore) createAccountTable() error {
 		ID uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
 		Username varchar(255),
 		Email varchar(255),
-		Create_At timestamp
+		CreatedAt timestamp
 	);`
 
 	_, err := s.db.Exec(query)
