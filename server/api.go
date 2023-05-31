@@ -25,9 +25,11 @@ func (s *APIServer) Run() {
 	// TO DO reroute it to account
 	// router.HandleFunc("/", makeHTTPHandlerFunc(s.handleAccount))
 
-	router.HandleFunc("/account", makeHTTPHandlerFunc(s.handleAccount))
+	router.HandleFunc("/account/", makeHTTPHandlerFunc(s.handleAccount))
 
-	router.HandleFunc("/account/{uuid}", makeHTTPHandlerFunc(s.handleGetAccount))
+	router.HandleFunc("/account/{uuid}/", makeHTTPHandlerFunc(s.handleGetAccount))
+
+	router.HandleFunc("/health/", makeHTTPHandlerFunc(s.handleHealth))
 
 	log.Println("JSON API server running on port: ", s.listenAddr)
 
@@ -39,6 +41,14 @@ func NewAPIServer(listenAddr string, store Storage) *APIServer {
 		listenAddr: listenAddr,
 		store:      store,
 	}
+}
+
+func (s *APIServer) handleHealth(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "GET" {
+		return fmt.Errorf("method not allowed: %s", r.Method)
+	}
+
+	return WriteJSON(w, http.StatusOK, "Everything seems fine!")
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -71,7 +81,18 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	req := new(CreateAccountRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	account := NewAccount(req.Username, req.Email)
+
+	if err := s.store.CreateAccount(account); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusCreated, account)
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
