@@ -1,2 +1,4 @@
 **/bin/exec/
 **/bin/scripts/.env
+/postgresserver
+.DS_Store
