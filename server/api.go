@@ -27,7 +27,7 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("/account/", makeHTTPHandlerFunc(s.handleAccount))
 
-	router.HandleFunc("/account/{uuid}/", makeHTTPHandlerFunc(s.handleGetAccount))
+	router.HandleFunc("/account/{uuid}/", makeHTTPHandlerFunc(s.handleGetAccountByID))
 
 	router.HandleFunc("/health/", makeHTTPHandlerFunc(s.handleHealth))
 
@@ -65,6 +65,16 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
+	accounts, err := s.store.GetAccounts()
+
+	if err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, accounts)
+}
+
+func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 	id, err := uuid.Parse(mux.Vars(r)["uuid"])
 	if err != nil {
 		log.Println("error when parsing uuid", err.Error())
