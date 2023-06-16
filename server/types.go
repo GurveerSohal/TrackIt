@@ -20,7 +20,6 @@ type Account struct {
 
 func NewAccount(username, email string) *Account {
 	return &Account{
-		ID:        uuid.New(),
 		Username:  username,
 		Email:     email,
 		CreatedAt: time.Now().UTC(),
