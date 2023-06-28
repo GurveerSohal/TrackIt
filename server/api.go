@@ -11,7 +11,7 @@ import (
 )
 
 type APIError struct {
-	Error string
+	Error string `json:"error"`
 }
 
 type APIServer struct {
@@ -57,8 +57,6 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 		return s.handleGetAccount(w, r)
 	case "POST":
 		return s.handleCreateAccount(w, r)
-	case "DELETE":
-		return s.handleDeleteAccount(w, r)
 	default:
 		return fmt.Errorf("method not allowed: %s", method)
 	}
@@ -75,19 +73,25 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
-	id, err := uuid.Parse(mux.Vars(r)["uuid"])
-	if err != nil {
-		log.Println("error when parsing uuid", err.Error())
-		return err
+	switch method := r.Method; method {
+	case "GET":
+		id, err := getID(r)
+		if err != nil {
+			return err
+		}
+		account, err := s.store.GetAccountByID(id)
+
+		if err != nil {
+			str := fmt.Sprintf("Account with uuid %s not found", id)
+			return WriteJSON(w, http.StatusNotFound, str)
+		}
+
+		return WriteJSON(w, http.StatusOK, account)
+	case "DELETE":
+		return s.handleDeleteAccount(w, r)
+	default:
+		return fmt.Errorf("method not allowed: %s", method)
 	}
-
-	// TO DO check for a user in a database
-
-	return WriteJSON(w, http.StatusOK, &Account{
-		ID:       id,
-		Username: "dummy",
-		Email:    "user",
-	})
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
@@ -106,7 +110,17 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	if err := s.store.DeleteAccount(id); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, map[string]any{"deleted": id})
 }
 
 // writes the value v as json to the stream w
@@ -131,4 +145,15 @@ func makeHTTPHandlerFunc(f apiFunc) http.HandlerFunc {
 			WriteJSON(w, http.StatusBadRequest, APIError{Error: err.Error()})
 		}
 	}
+}
+
+func getID(r *http.Request) (uuid.UUID, error) {
+	id, err := uuid.Parse(mux.Vars(r)["uuid"])
+
+	if err != nil {
+		log.Println("error when parsing uuid", err.Error())
+		return id, fmt.Errorf("invalid uuid : %s, %s", mux.Vars(r)["uuid"], err.Error())
+	}
+
+	return id, nil
 }
