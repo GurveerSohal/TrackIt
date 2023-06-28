@@ -56,7 +56,7 @@ func (s *PostgresStore) createAccountTable() error {
 }
 func (s *PostgresStore) CreateAccount(a *Account) error {
 	statement := `INSERT INTO accounts (Username, Email, CreatedAt) 
-			VALUES ($1, $2, $3)`
+			VALUES ($1, $2, $3);`
 
 	resp, err := s.db.Exec(statement, a.Username, a.Email, a.CreatedAt)
 
@@ -74,16 +74,35 @@ func (s *PostgresStore) UpdateAccount(a *Account) error {
 }
 
 func (s *PostgresStore) DeleteAccount(id uuid.UUID) error {
-	return nil
+	// TODO later add another field to soft delete the data
+	query := `DELETE 
+			  FROM accounts
+			  WHERE
+			  	id = $1
+			;`
+	_, err := s.db.Exec(query, id)
+
+	return err
 }
 
 func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*Account, error) {
-	return &Account{}, nil
+	query := `SELECT * 
+			FROM accounts
+			WHERE
+				id = $1
+			;`
+
+	row := s.db.QueryRow(query, id)
+
+	if err := row.Err(); err != nil {
+		return nil, err
+	}
+
+	return scanAccountFromRow(row)
 }
 
 func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	query := `SELECT * FROM accounts`
-
 	rows, err := s.db.Query(query)
 
 	if err != nil {
@@ -93,20 +112,44 @@ func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	accounts := []*Account{}
 
 	for rows.Next() {
-		account := new(Account)
-
-		err := rows.Scan(
-			&account.ID,
-			&account.Username,
-			&account.Email,
-			&account.CreatedAt)
-
+		account, err := scanAccountFromRows(rows)
 		if err != nil {
 			return nil, err
 		}
-
 		accounts = append(accounts, account)
 	}
 
 	return accounts, nil
+}
+
+func scanAccountFromRows(rows *sql.Rows) (*Account, error) {
+	account := new(Account)
+
+	err := rows.Scan(
+		&account.ID,
+		&account.Username,
+		&account.Email,
+		&account.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return account, nil
+}
+
+func scanAccountFromRow(row *sql.Row) (*Account, error) {
+	account := new(Account)
+
+	err := row.Scan(
+		&account.ID,
+		&account.Username,
+		&account.Email,
+		&account.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return account, nil
 }
