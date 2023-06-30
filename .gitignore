@@ -2,3 +2,4 @@
 **/bin/scripts/.env
 /postgresserver
 .DS_Store
+.env
