@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -58,13 +57,32 @@ func (s *PostgresStore) CreateAccount(a *Account) error {
 	statement := `INSERT INTO accounts (Username, Email, CreatedAt) 
 			VALUES ($1, $2, $3);`
 
-	resp, err := s.db.Exec(statement, a.Username, a.Email, a.CreatedAt)
+	_, err := s.db.Exec(statement, a.Username, a.Email, a.CreatedAt)
 
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%+v\n", resp)
+	// TO DO check that no user has the same email
+
+	query := `SELECT * 
+			FROM accounts
+			WHERE
+				email = $1
+			;`
+
+	row := s.db.QueryRow(query, a.Email)
+
+	if err := row.Err(); err != nil {
+		return err
+	}
+
+	createdAccount, err := scanAccountFromRow(row)
+	a.ID = createdAccount.ID
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
