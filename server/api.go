@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -27,7 +29,7 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("/account/", makeHTTPHandlerFunc(s.handleAccount))
 
-	router.HandleFunc("/account/{uuid}/", makeHTTPHandlerFunc(s.handleGetAccountByID))
+	router.HandleFunc("/account/{uuid}/", withJWTAuth(makeHTTPHandlerFunc(s.handleGetAccountByID)))
 
 	router.HandleFunc("/health/", makeHTTPHandlerFunc(s.handleHealth))
 
@@ -106,7 +108,23 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	return WriteJSON(w, http.StatusCreated, account)
+	tokenString, err := createJWT(account)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(tokenString)
+
+	body := struct {
+		Account *Account
+		Token   string
+	}{
+		Account: account,
+		Token:   tokenString,
+	}
+
+	return WriteJSON(w, http.StatusCreated, body)
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
@@ -128,6 +146,49 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
+}
+
+func validateJWT(tokenString string) (*jwt.Token, error) {
+	secret := os.Getenv("JWT_SECRET_KEY")
+
+	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		return []byte(secret), nil
+	})
+
+}
+
+func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("calling jwt auth middleware")
+
+		tokenString := r.Header.Get("x-jwt-token")
+		_, err := validateJWT(tokenString)
+
+		if err != nil {
+			WriteJSON(w, http.StatusForbidden, APIError{Error: "Invalid token"})
+			return
+		}
+
+		handlerFunc(w, r)
+	}
+}
+
+func createJWT(account *Account) (string, error) {
+	claims := &jwt.MapClaims{
+		"expiersAt": 15000,
+		"accountID": account.ID,
+	}
+
+	secret := os.Getenv("JWT_SECRET_KEY")
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString([]byte(secret))
 }
 
 // a type (which is the function signature for our handler functions)
