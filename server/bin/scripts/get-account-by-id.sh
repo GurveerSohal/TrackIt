@@ -3,16 +3,14 @@
 # set -x # if you want to print the commands
 
 source .env
+source .user
 
-if [ "#$1" = "#" ]; then 
-    echo "Provide a uuid";
-    exit 1;
-fi
-
-req_url=`echo $CREATE_ACCOUNT_URL$1/`
+req_url=`echo $CREATE_ACCOUNT_URL/$ID/`
+token_header=`echo x-jwt-token: $TOKEN`
 
 echo $req_url;
 
 curl -i \
+    -H "$token_header" \
     $req_url \
 ;
