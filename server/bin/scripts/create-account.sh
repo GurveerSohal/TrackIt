@@ -4,7 +4,7 @@
 
 source .env
 
-req_url=`echo $CREATE_ACCOUNT_URL`
+req_url=`echo $CREATE_ACCOUNT_URL/`
 
 curl -i \
     $req_url \
