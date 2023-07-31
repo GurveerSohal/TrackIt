@@ -29,7 +29,7 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("/account/", makeHTTPHandlerFunc(s.handleAccount))
 
-	router.HandleFunc("/account/{uuid}/", withJWTAuth(makeHTTPHandlerFunc(s.handleGetAccountByID)))
+	router.HandleFunc("/account/{uuid}/", withJWTAuth(makeHTTPHandlerFunc(s.handleGetAccountByID), s.store))
 
 	router.HandleFunc("/health/", makeHTTPHandlerFunc(s.handleHealth))
 
@@ -163,17 +163,50 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 
 }
 
-func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+func permissionDenied(w http.ResponseWriter) {
+	WriteJSON(w, http.StatusForbidden, APIError{Error: "permission denied"})
+}
+
+func internalServerError(w http.ResponseWriter) {
+	WriteJSON(w, http.StatusInternalServerError, nil)
+}
+func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("calling jwt auth middleware")
-
 		tokenString := r.Header.Get("x-jwt-token")
-		_, err := validateJWT(tokenString)
-
+		token, err := validateJWT(tokenString)
 		if err != nil {
-			WriteJSON(w, http.StatusForbidden, APIError{Error: "Invalid token"})
+			fmt.Println(err.Error())
+			permissionDenied(w)
 			return
 		}
+
+		id, err := getID(r)
+		if err != nil {
+			fmt.Println(err.Error())
+			permissionDenied(w)
+			return
+		}
+
+		account, err := s.GetAccountByID(id)
+		if err != nil {
+			fmt.Println(err.Error())
+			internalServerError(w)
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			fmt.Println("Error when getting claims from token")
+			permissionDenied(w)
+			return
+		}
+
+		if uuid.MustParse(claims["accountID"].(string)) != account.ID {
+			fmt.Println(claims, account)
+			permissionDenied(w)
+			return
+		}
+
+		fmt.Println(claims)
 
 		handlerFunc(w, r)
 	}

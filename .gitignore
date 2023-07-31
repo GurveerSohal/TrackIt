@@ -1,5 +1,6 @@
 **/bin/exec/
 **/bin/scripts/.env
+**/bin/scripts/.user
 /postgresserver
 .DS_Store
 .env
