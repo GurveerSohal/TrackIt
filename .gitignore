@@ -1,6 +1,14 @@
+.DS_Store
+
+# build and dev files
+client/dist
+client/devDist
+.env
+**/node_modules
+**/.parcel-cache
+/postgresserver
+
+# scripts and binaries
 **/bin/exec/
 **/bin/scripts/.env
 **/bin/scripts/.user
-/postgresserver
-.DS_Store
-.env
