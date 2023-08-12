@@ -58,11 +58,28 @@ func (d *Database) createUsersTable() error {
 	return nil
 }
 
-func (d *Database) createDummyUser() error {
-	id := uuid.New()
-	username := "testAccount"
-	password := "testP*ssw0rd!"
+func (d *Database) createWorkoutTable() error {
+	// The SQL standard requires that writing just timestamp be equivalent to timestamp without time zone,
+	// and PostgreSQL honors that behavior.
 
+	statement := `CREATE TABLE IF NOT EXISTS workouts (
+		user_id uuid NOT NULL,
+		workout_number smallint NOT NULL,
+		created timestamp NOT NULL DEFAULT now(),
+		PRIMARY KEY(user_id, workout_number)
+	);`
+
+	_, err := d.db.Exec(statement)
+
+	if err != nil {
+		printError(err, "error when creating workout table")
+		return err
+	}
+
+	return nil
+}
+
+func (d *Database) createDummyUser(id uuid.UUID, username string, password string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		printError(err, "error when hasing password for dummy user")
@@ -82,6 +99,23 @@ func (d *Database) createDummyUser() error {
 
 	return nil
 }
+
+func (d *Database) createDummyWorkout(id uuid.UUID, workout_number int) error {
+	statement := `
+		INSERT INTO workouts VALUES (
+			$1, $2
+		);
+	`
+
+	if _, err := d.db.Exec(statement, id, workout_number); err != nil {
+		printError(err, "error error when creating dummy workout in database")
+		return err
+	}
+
+	return nil
+}
+
+
 func (d *Database) createUser(username string, password string) error {
 	id := uuid.New()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
