@@ -29,6 +29,9 @@ func main() {
 	database.dropUsersTable()
 	database.createUsersTable()
 
+	// TO DO remove these later
+	database.createDummyUser()
+
 	router := chi.NewRouter()
 
 	server := Server{
