@@ -28,8 +28,8 @@ type Database struct {
 	db *sql.DB
 }
 
-func (d *Database) dropUsersTable() error {
-	statement := `DROP TABLE IF EXISTS users;`
+func (d *Database) dropTables() error {
+	statement := `DROP TABLE IF EXISTS users, workouts, sets;`
 
 	if _, err := d.db.Exec(statement); err != nil {
 		return err
@@ -52,6 +52,7 @@ func (d *Database) createUsersTable() error {
 	_, err := d.db.Exec(statement)
 
 	if err != nil {
+		printError(err, "error when creating users table")
 		return err
 	}
 
@@ -79,42 +80,28 @@ func (d *Database) createWorkoutTable() error {
 	return nil
 }
 
-func (d *Database) createDummyUser(id uuid.UUID, username string, password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func (d *Database) createSetTable() error {
+	// The SQL standard requires that writing just timestamp be equivalent to timestamp without time zone,
+	// and PostgreSQL honors that behavior.
+
+	statement := `CREATE TABLE IF NOT EXISTS sets (
+		user_id uuid NOT NULL,
+		workout_number smallint NOT NULL,
+		set_number smallint NOT NULL,
+		reps smallint NOT NULL,
+		name VARCHAR(256) NOT NULL,
+		PRIMARY KEY(user_id, workout_number, set_number)
+	);`
+
+	_, err := d.db.Exec(statement)
+
 	if err != nil {
-		printError(err, "error when hasing password for dummy user")
-		return err
-	}
-
-	statement := `
-		INSERT INTO users VALUES (
-			$1, $2, $3
-		);
-	`
-
-	if _, err := d.db.Exec(statement, id, username, hash); err != nil {
-		printError(err, "error error when creating dummy user in database")
+		printError(err, "error when creating set table")
 		return err
 	}
 
 	return nil
 }
-
-func (d *Database) createDummyWorkout(id uuid.UUID, workout_number int) error {
-	statement := `
-		INSERT INTO workouts VALUES (
-			$1, $2
-		);
-	`
-
-	if _, err := d.db.Exec(statement, id, workout_number); err != nil {
-		printError(err, "error error when creating dummy workout in database")
-		return err
-	}
-
-	return nil
-}
-
 
 func (d *Database) createUser(username string, password string) error {
 	id := uuid.New()
