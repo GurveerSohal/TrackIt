@@ -14,7 +14,7 @@ type Server struct {
 	router   *chi.Mux
 }
 
-type LoginRequest struct {
+type UserPwdRequest struct {
 	Username string
 	Password string
 }
@@ -22,6 +22,7 @@ type LoginRequest struct {
 func (s *Server) init() {
 	s.router.Get("/api/health", s.handleHealth)
 	s.router.Post("/api/login", s.handleLogin)
+	s.router.Post("/api/signup", s.handleSignup)
 	http.ListenAndServe(":8080", s.router)
 }
 
@@ -36,11 +37,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	body := new(LoginRequest)
+	body := new(UserPwdRequest)
 	json.NewDecoder(r.Body).Decode(body)
 
 	user, err := s.database.getUser(body.Username)
-	if (err != nil) {
+	if err != nil {
 		res := struct {
 			Message string `json:"message"`
 		}{
@@ -59,7 +60,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJson(w, http.StatusUnauthorized, res)
 		return
-	}	
+	}
 
 	res := struct {
 		Message string `json:"message"`
@@ -68,4 +69,32 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJson(w, http.StatusOK, res)
+}
+
+func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
+	body := new(UserPwdRequest)
+	json.NewDecoder(r.Body).Decode(body)
+
+	_, err := s.database.getUser(body.Username)
+	if err == nil {
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "user already exists",
+		}
+		writeJson(w, http.StatusUnauthorized, res)
+		return
+	}
+
+	if err := s.database.createUser(body.Username, body.Password); err != nil {
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "failed to create user",
+		}
+		writeJson(w, http.StatusInternalServerError, res)
+		return
+	}
+
+	writeJson(w, http.StatusCreated, nil)
 }

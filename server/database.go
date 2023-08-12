@@ -81,11 +81,27 @@ func (d *Database) createDummyUser() error {
 	}
 
 	return nil
-
-
 }
-func (d *Database) createUser(username string, password string) {
+func (d *Database) createUser(username string, password string) error {
+	id := uuid.New()
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		printError(err, "error when hasing password for dummy user")
+		return err
+	}
 
+	statement := `
+		INSERT INTO users VALUES (
+			$1, $2, $3
+		);
+	`
+
+	if _, err := d.db.Exec(statement, id, username, hash); err != nil {
+		printError(err, "error error when creating dummy user in database")
+		return err
+	}
+
+	return nil
 }
 
 func (d *Database) getUser(username string) (*User, error) {
