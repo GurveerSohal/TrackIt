@@ -54,13 +54,37 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTokenVerify(w http.ResponseWriter, r *http.Request) {
 	body := new(TokenVerifyRequest)
-	json.NewDecoder(r.Body).Decode(body)
+	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "token invalid",
+		}
+		writeJson(w, http.StatusUnauthorized, res)
+		return
+	}
 
 	tokenString := body.Token
+
+	println(tokenString)
 
 	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
+
+	fmt.Println(token, err)
+
+	if err != nil || token == nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "token invalid",
+		}
+		writeJson(w, http.StatusUnauthorized, res)
+		return
+	}
 
 	if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
 		fmt.Printf("%v %v\n", claims.Username, claims.RegisteredClaims.Issuer)
