@@ -41,4 +41,6 @@ async function loginUser(event) {
 
   Cookies.set("token", data.token)
   console.log("cookie set")
+
+  window.location.replace('/home')
 }
