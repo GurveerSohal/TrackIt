@@ -1,0 +1,6 @@
+{
+    "compilerOptions": {
+      "types": ["node", "js-cookie"],
+      "esModuleInterop": true,
+    }
+  }

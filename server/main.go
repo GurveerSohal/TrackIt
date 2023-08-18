@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
@@ -46,6 +48,16 @@ func main() {
 	database.createDummySet(id1, 1, 2, 4, "bench")
 
 	router := chi.NewRouter()
+	println(os.Getenv("CLIENT_URL"))
+	println(os.Getenv("JWT_SECRET"))
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{os.Getenv("CLIENT_URL")}, // Use this to allow specific origin hosts
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	  }))
 
 	server := Server{
 		database: &database,
