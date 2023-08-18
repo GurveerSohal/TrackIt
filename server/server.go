@@ -3,9 +3,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -62,10 +67,47 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mySigningKey := []byte(os.Getenv("JWT_SECRET"))
+	fmt.Println(mySigningKey)
+
+	type MyCustomClaims struct {
+		Username string `json:"username"`
+		Uid uuid.UUID `json:"uid"`
+		jwt.RegisteredClaims
+	}
+	
+	// Create claims with multiple fields populated
+	claims := MyCustomClaims{
+		user.Username,
+		user.Id,
+		jwt.RegisteredClaims{
+			// A usual scenario is to set the expiration time relative to the current time
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer: "trackitserver",
+		},
+	}
+	
+	fmt.Printf("username: %v\n", claims.Username)
+	fmt.Printf("uid: %v\n", claims.Uid)
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	ss, err := token.SignedString(mySigningKey)
+	if err != nil {
+		fmt.Println("error when creating jwt")
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "internal_server_error",
+		}
+	
+		writeJson(w, http.StatusInternalServerError, res)
+	}
+
 	res := struct {
-		Message string `json:"message"`
+		Token string `json:"token"`
 	}{
-		Message: "logged in",
+		Token: ss,
 	}
 
 	writeJson(w, http.StatusOK, res)
