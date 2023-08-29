@@ -29,6 +29,13 @@ type TokenRequest struct {
 	Token string
 }
 
+type CreateSetRequest struct {
+	Token string
+	Workout_number int
+	Reps int
+	Name string
+}
+
 type MyCustomClaims struct {
 	Username string    `json:"username"`
 	Uid      uuid.UUID `json:"uid"`
@@ -41,6 +48,7 @@ func (s *Server) init() {
 	s.router.Post("/api/signup", s.handleSignup)
 	s.router.Post("/api/token/verify", s.handleTokenVerify)
 	s.router.Post("/api/create-workout", s.handleCreateWorkout)
+	s.router.Post("/api/create-set", s.handleCreateSet)
 	http.ListenAndServe(":8080", s.router)
 }
 
@@ -61,9 +69,9 @@ func (s *Server) handleTokenVerify(w http.ResponseWriter, r *http.Request) {
 		res := struct {
 			Message string `json:"message"`
 		}{
-			Message: "token invalid",
+			Message: "bad request",
 		}
-		writeJson(w, http.StatusUnauthorized, res)
+		writeJson(w, http.StatusBadRequest, res)
 		return
 	}
 
@@ -97,7 +105,16 @@ func (s *Server) handleTokenVerify(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	body := new(UserPwdRequest)
-	json.NewDecoder(r.Body).Decode(body)
+	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "bad request",
+		}
+		writeJson(w, http.StatusBadRequest, res)
+		return
+	}
 
 	user, err := s.database.getUser(body.Username)
 	if err != nil {
@@ -163,7 +180,16 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 	body := new(UserPwdRequest)
-	json.NewDecoder(r.Body).Decode(body)
+	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "bad request",
+		}
+		writeJson(w, http.StatusBadRequest, res)
+		return
+	}
 
 	_, err := s.database.getUser(body.Username)
 	if err == nil {
@@ -250,9 +276,9 @@ func (s *Server) handleCreateWorkout(w http.ResponseWriter, r *http.Request) {
 		res := struct {
 			Message string `json:"message"`
 		}{
-			Message: "token invalid",
+			Message: "bad request",
 		}
-		writeJson(w, http.StatusUnauthorized, res)
+		writeJson(w, http.StatusBadRequest, res)
 		return
 	}
 
@@ -288,8 +314,60 @@ func (s *Server) handleCreateWorkout(w http.ResponseWriter, r *http.Request) {
 		Message string `json:"message"`
 		WorkoutNumber int `json:"workout_number"`
 	}{
-		Message: "token invalid",
+		Message: "created workout",
 		WorkoutNumber: workout_number,
+	}
+
+	writeJson(w, http.StatusOK, res)
+}
+
+func (s *Server) handleCreateSet(w http.ResponseWriter, r *http.Request) {
+	body := new(CreateSetRequest)
+	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "bad request",
+		}
+		writeJson(w, http.StatusBadRequest, res)
+		return
+	}
+
+	tokenString := body.Token
+
+	claims, err := getUserInfoFromToken(tokenString)
+
+	if err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "token invalid",
+		}
+		writeJson(w, http.StatusUnauthorized, res)
+		return
+	}
+
+	set_number, err := s.database.createSet(claims.Uid, body.Workout_number, body.Reps, body.Name)
+	if err != nil {
+		fmt.Println("error when workout in database")
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "internal_server_error",
+		}
+
+		writeJson(w, http.StatusInternalServerError, res)	
+		return
+	}
+
+	res := struct {
+		Message string `json:"message"`
+		SetNumber int `json:"set_number"`
+	}{
+		Message: "created set",
+		SetNumber: set_number,
 	}
 
 	writeJson(w, http.StatusOK, res)

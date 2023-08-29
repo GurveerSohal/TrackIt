@@ -52,7 +52,7 @@ func (d *Database) createDummySet(id uuid.UUID, workout_number int, set_number i
 	);
 `
 
-if _, err := d.db.Exec(statement, id, workout_number, set_number, reps, name); err != nil {
+if _, err := d.db.Exec(statement, id, workout_number, reps, name, set_number); err != nil {
 	printError(err, "error error when creating dummy set in database")
 	return err
 }

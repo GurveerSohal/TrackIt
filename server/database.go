@@ -105,11 +105,28 @@ func (d *Database) createSetTable() error {
 	statement := `CREATE TABLE IF NOT EXISTS sets (
 		user_id uuid NOT NULL,
 		workout_number smallint NOT NULL,
-		set_number smallint NOT NULL,
 		reps smallint NOT NULL,
 		name VARCHAR(256) NOT NULL,
+		set_number smallint NOT NULL,
 		PRIMARY KEY(user_id, workout_number, set_number)
-	);`
+	);
+	
+	-- Create a function to calculate set_number
+	CREATE OR REPLACE FUNCTION calculate_set_number()
+	RETURNS TRIGGER AS $$
+	BEGIN
+    	NEW.set_number := COALESCE((SELECT MAX(set_number) FROM sets WHERE user_id = NEW.user_id and workout_number = NEW.workout_number), 0) + 1;
+    	RETURN NEW;
+	END;
+	$$ LANGUAGE plpgsql;
+	
+	-- Create a trigger that calls the calculate_set_number function on INSERT
+	DROP TRIGGER IF EXISTS update_set_number ON sets;
+
+	CREATE TRIGGER update_set_number
+	BEFORE INSERT ON sets
+	FOR EACH ROW
+	EXECUTE FUNCTION calculate_set_number();`
 
 	_, err := d.db.Exec(statement)
 
@@ -159,12 +176,36 @@ func (d *Database) createWorkout(id uuid.UUID) (int, error) {
 	defer statement.Close()
 
 	var workout_number int
-	err = statement.QueryRow(id, /* other_column_values... */).Scan(&workout_number)
+	err = statement.QueryRow(id).Scan(&workout_number)
 	if err != nil {
 		printError(err, "error error when creating workout in database")
 		return -1, err
 	}
 	return workout_number, nil
+}
+
+func (d *Database) createSet(id uuid.UUID, workout_number int, reps int, name string) (int, error) {
+
+	statement, err := d.db.Prepare(`
+		INSERT INTO sets VALUES (
+			$1, $2, $3, $4
+		)
+		RETURNING set_number;
+	`); 
+	if err != nil {
+		printError(err, "error error when creating set in database (while preparing statment)")
+		return -1, err
+	}
+
+	defer statement.Close()
+
+	var set_number int
+	err = statement.QueryRow(id, workout_number, reps, name).Scan(&set_number)
+	if err != nil {
+		printError(err, "error error when creating workout in database")
+		return -1, err
+	}
+	return set_number, nil
 }
 
 func (d *Database) getUser(username string) (*User, error) {
