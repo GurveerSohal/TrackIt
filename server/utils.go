@@ -30,14 +30,14 @@ func (d *Database) createDummyUser(id uuid.UUID, username string, password strin
 	return nil
 }
 
-func (d *Database) createDummyWorkout(id uuid.UUID, workout_number int) error {
+func (d *Database) createDummyWorkout(id uuid.UUID) error {
 	statement := `
 		INSERT INTO workouts VALUES (
-			$1, $2
+			$1
 		);
 	`
 
-	if _, err := d.db.Exec(statement, id, workout_number); err != nil {
+	if _, err := d.db.Exec(statement, id); err != nil {
 		printError(err, "error error when creating dummy workout in database")
 		return err
 	}

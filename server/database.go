@@ -18,10 +18,10 @@ import (
 )
 
 type User struct {
-	Id uuid.UUID
+	Id       uuid.UUID
 	Username string
-	Hash []byte
-	Created time.Time
+	Hash     []byte
+	Created  time.Time
 }
 
 type Database struct {
@@ -65,10 +65,28 @@ func (d *Database) createWorkoutTable() error {
 
 	statement := `CREATE TABLE IF NOT EXISTS workouts (
 		user_id uuid NOT NULL,
-		workout_number smallint NOT NULL,
+		workout_number smallint,
 		created timestamp NOT NULL DEFAULT now(),
 		PRIMARY KEY(user_id, workout_number)
-	);`
+	);
+	
+	-- Create a function to calculate workout_number
+	CREATE OR REPLACE FUNCTION calculate_workout_number()
+	RETURNS TRIGGER AS $$
+	BEGIN
+    	NEW.workout_number := COALESCE((SELECT MAX(workout_number) FROM workouts WHERE user_id = NEW.user_id), 0) + 1;
+    	RETURN NEW;
+	END;
+	$$ LANGUAGE plpgsql;
+	
+	-- Create a trigger that calls the calculate_workout_number function on INSERT
+	DROP TRIGGER IF EXISTS update_workout_number ON workouts;
+
+	CREATE TRIGGER update_workout_number
+	BEFORE INSERT ON workouts
+	FOR EACH ROW
+	EXECUTE FUNCTION calculate_workout_number();
+	`
 
 	_, err := d.db.Exec(statement)
 
@@ -125,9 +143,33 @@ func (d *Database) createUser(username string, password string) error {
 	return nil
 }
 
+func (d *Database) createWorkout(id uuid.UUID) (int, error) {
+
+	statement, err := d.db.Prepare(`
+		INSERT INTO workouts VALUES (
+			$1
+		)
+		RETURNING workout_number;
+	`); 
+	if err != nil {
+		printError(err, "error error when creating workout in database (while preparing statment)")
+		return -1, err
+	}
+
+	defer statement.Close()
+
+	var workout_number int
+	err = statement.QueryRow(id, /* other_column_values... */).Scan(&workout_number)
+	if err != nil {
+		printError(err, "error error when creating workout in database")
+		return -1, err
+	}
+	return workout_number, nil
+}
+
 func (d *Database) getUser(username string) (*User, error) {
 	// get the user
-	user  := new(User)
+	user := new(User)
 	query := `
 		SELECT * 
 		FROM users

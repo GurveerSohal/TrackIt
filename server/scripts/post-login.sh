@@ -1,5 +1,5 @@
 #! /bin/bash
 
 curl -i -X POST \
-    -d "{\"username\" : \"user1\", \"password\" : \"pwd1\"}" \
+    -d "{\"username\" : \"user2\", \"password\" : \"pwd2\"}" \
     http://localhost:8080/api/login

@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,13 +25,13 @@ type UserPwdRequest struct {
 	Password string
 }
 
-type TokenVerifyRequest struct { 
+type TokenRequest struct {
 	Token string
 }
 
 type MyCustomClaims struct {
-	Username string `json:"username"`
-	Uid uuid.UUID `json:"uid"`
+	Username string    `json:"username"`
+	Uid      uuid.UUID `json:"uid"`
 	jwt.RegisteredClaims
 }
 
@@ -39,6 +40,7 @@ func (s *Server) init() {
 	s.router.Post("/api/login", s.handleLogin)
 	s.router.Post("/api/signup", s.handleSignup)
 	s.router.Post("/api/token/verify", s.handleTokenVerify)
+	s.router.Post("/api/create-workout", s.handleCreateWorkout)
 	http.ListenAndServe(":8080", s.router)
 }
 
@@ -53,7 +55,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTokenVerify(w http.ResponseWriter, r *http.Request) {
-	body := new(TokenVerifyRequest)
+	body := new(TokenRequest)
 	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
 		fmt.Println(err)
 		res := struct {
@@ -67,15 +69,9 @@ func (s *Server) handleTokenVerify(w http.ResponseWriter, r *http.Request) {
 
 	tokenString := body.Token
 
-	println(tokenString)
+	claims, err := getUserInfoFromToken(tokenString)
 
-	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("JWT_SECRET")), nil
-	})
-
-	fmt.Println(token, err)
-
-	if err != nil || token == nil {
+	if err != nil {
 		fmt.Println(err)
 		res := struct {
 			Message string `json:"message"`
@@ -86,24 +82,17 @@ func (s *Server) handleTokenVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
-		fmt.Printf("%v %v\n", claims.Username, claims.RegisteredClaims.Issuer)
-		res := struct {
-			Message string `json:"message"`
-		}{
-			Message: "token valid",
-		}
-		writeJson(w, http.StatusOK, res)
-	} else {
-		fmt.Println(err)
-		res := struct {
-			Message string `json:"message"`
-		}{
-			Message: "token invalid",
-		}
-		writeJson(w, http.StatusUnauthorized, res)
+	fmt.Printf("%v %v\n", claims.Username, claims.RegisteredClaims.Issuer)
+	res := struct {
+		Message  string `json:"message"`
+		Username string `json:"username"`
+		Id       string `json:"id"`
+	}{
+		Message:  "token valid",
+		Username: claims.Username,
+		Id:       claims.Uid.String(),
 	}
-	
+	writeJson(w, http.StatusOK, res)
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +123,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	mySigningKey := []byte(os.Getenv("JWT_SECRET"))
 	fmt.Println(mySigningKey)
-	
+
 	// Create claims with multiple fields populated
 	claims := MyCustomClaims{
 		user.Username,
@@ -143,10 +132,10 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 			// A usual scenario is to set the expiration time relative to the current time
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer: "trackitserver",
+			Issuer:    "trackitserver",
 		},
 	}
-	
+
 	fmt.Printf("username: %v\n", claims.Username)
 	fmt.Printf("uid: %v\n", claims.Uid)
 
@@ -159,7 +148,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		}{
 			Message: "internal_server_error",
 		}
-	
+
 		writeJson(w, http.StatusInternalServerError, res)
 	}
 
@@ -197,7 +186,6 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	user, err := s.database.getUser(body.Username)
 	if err != nil {
 		res := struct {
@@ -213,11 +201,11 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(mySigningKey)
 
 	type MyCustomClaims struct {
-		Username string `json:"username"`
-		Uid uuid.UUID `json:"uid"`
+		Username string    `json:"username"`
+		Uid      uuid.UUID `json:"uid"`
 		jwt.RegisteredClaims
 	}
-	
+
 	// Create claims with multiple fields populated
 	claims := MyCustomClaims{
 		user.Username,
@@ -226,10 +214,10 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 			// A usual scenario is to set the expiration time relative to the current time
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer: "trackitserver",
+			Issuer:    "trackitserver",
 		},
 	}
-	
+
 	fmt.Printf("username: %v\n", claims.Username)
 	fmt.Printf("uid: %v\n", claims.Uid)
 
@@ -242,7 +230,7 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		}{
 			Message: "internal_server_error",
 		}
-	
+
 		writeJson(w, http.StatusInternalServerError, res)
 	}
 
@@ -253,4 +241,75 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJson(w, http.StatusOK, res)
+}
+
+func (s *Server) handleCreateWorkout(w http.ResponseWriter, r *http.Request) {
+	body := new(TokenRequest)
+	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "token invalid",
+		}
+		writeJson(w, http.StatusUnauthorized, res)
+		return
+	}
+
+	tokenString := body.Token
+
+	claims, err := getUserInfoFromToken(tokenString)
+
+	if err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "token invalid",
+		}
+		writeJson(w, http.StatusUnauthorized, res)
+		return
+	}
+
+	workout_number, err := s.database.createWorkout(claims.Uid)
+	if err != nil {
+		fmt.Println("error when workout in database")
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "internal_server_error",
+		}
+
+		writeJson(w, http.StatusInternalServerError, res)	
+		return
+	}
+
+	res := struct {
+		Message string `json:"message"`
+		WorkoutNumber int `json:"workout_number"`
+	}{
+		Message: "token invalid",
+		WorkoutNumber: workout_number,
+	}
+
+	writeJson(w, http.StatusOK, res)
+}
+
+func getUserInfoFromToken(tokenString string) (*MyCustomClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
+
+	fmt.Println(token, err)
+
+	if err != nil || token == nil {
+		return nil, errors.New("invalid token")
+	}
+
+	if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
+		fmt.Printf("%v %v\n", claims.Username, claims.RegisteredClaims.Issuer)
+		return claims, nil
+	} else {
+		return nil, err
+	}
 }
