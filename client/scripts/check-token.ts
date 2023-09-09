@@ -8,7 +8,7 @@ async function checkToken() {
     }
 
 
-  const res = await fetch(`${server_url}/api/token/verify`, {
+  const res = await fetch(`${server_url}/api/token/verify/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

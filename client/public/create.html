@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create a workout</title>
+    <script type="module" src="../app.ts"></script>
+    <script type="module" src="../scripts/check-token.ts"></script>
+    <script type="module" src="../scripts/create.ts"></script>
+</head>
+<body>
+    <form id="create-workout-form">
+        <div>
+            <label for="name-input">Name</label>
+            <input id="name-input" type="text" placeholder="name">
+        </div>
+
+        <div>
+            <label for="reps-input">Reps</label>
+            <input id="reps-input" type="text" placeholder="reps">
+        </div>
+
+        <button type="submit">create set</button>
+    </form>
+</body>
+</html>

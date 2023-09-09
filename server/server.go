@@ -43,12 +43,12 @@ type MyCustomClaims struct {
 }
 
 func (s *Server) init() {
-	s.router.Get("/api/health", s.handleHealth)
-	s.router.Post("/api/login", s.handleLogin)
-	s.router.Post("/api/signup", s.handleSignup)
-	s.router.Post("/api/token/verify", s.handleTokenVerify)
-	s.router.Post("/api/create-workout", s.handleCreateWorkout)
-	s.router.Post("/api/create-set", s.handleCreateSet)
+	s.router.Get("/api/health/", s.handleHealth)
+	s.router.Post("/api/login/", s.handleLogin)
+	s.router.Post("/api/signup/", s.handleSignup)
+	s.router.Post("/api/token/verify/", s.handleTokenVerify)
+	s.router.Post("/api/create-workout/", s.handleCreateWorkout)
+	s.router.Post("/api/create-set/", s.handleCreateSet)
 	s.router.Post("/api/workouts/", s.handleGetWorkouts)
 	http.ListenAndServe(":8080", s.router)
 }

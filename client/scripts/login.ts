@@ -20,7 +20,7 @@ async function loginUser(event) {
     password: password,
   };
 
-  const res = await fetch(`${server_url}/api/login`, {
+  const res = await fetch(`${server_url}/api/login/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

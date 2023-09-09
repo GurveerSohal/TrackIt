@@ -1,3 +1,3 @@
 #! /bin/bash
 
-curl -i http://localhost:8080/api/health
+curl -i http://localhost:8080/api/health/
