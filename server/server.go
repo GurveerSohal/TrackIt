@@ -49,6 +49,7 @@ func (s *Server) init() {
 	s.router.Post("/api/token/verify", s.handleTokenVerify)
 	s.router.Post("/api/create-workout", s.handleCreateWorkout)
 	s.router.Post("/api/create-set", s.handleCreateSet)
+	s.router.Post("/api/workouts/", s.handleGetWorkouts)
 	http.ListenAndServe(":8080", s.router)
 }
 
@@ -316,6 +317,56 @@ func (s *Server) handleCreateWorkout(w http.ResponseWriter, r *http.Request) {
 	}{
 		Message: "created workout",
 		WorkoutNumber: workout_number,
+	}
+
+	writeJson(w, http.StatusOK, res)
+}
+
+func (s *Server) handleGetWorkouts(w http.ResponseWriter, r *http.Request) {
+	body := new(TokenRequest)
+	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "bad request",
+		}
+		writeJson(w, http.StatusBadRequest, res)
+		return
+	}
+
+	tokenString := body.Token
+
+	claims, err := getUserInfoFromToken(tokenString)
+
+	if err != nil {
+		fmt.Println(err)
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "token invalid",
+		}
+		writeJson(w, http.StatusUnauthorized, res)
+		return
+	}
+
+	workouts, err := s.database.getWorkouts(claims.Uid)
+	if err != nil {
+		fmt.Println("error when getting workouts from database")
+		res := struct {
+			Message string `json:"message"`
+		}{
+			Message: "internal_server_error",
+		}
+
+		writeJson(w, http.StatusInternalServerError, res)	
+		return
+	}
+
+	res := struct {
+		Wokouts WorkoutMap `json:"workouts"`
+	}{
+		Wokouts: *workouts,
 	}
 
 	writeJson(w, http.StatusOK, res)

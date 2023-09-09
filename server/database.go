@@ -24,6 +24,14 @@ type User struct {
 	Created  time.Time
 }
 
+type Set struct {
+	Set_number int `json:"set_number"`
+	Name string `json:"name"`
+	Reps int	`json:"reps"`
+}
+
+type WorkoutMap map[int][]Set
+
 type Database struct {
 	db *sql.DB
 }
@@ -182,6 +190,74 @@ func (d *Database) createWorkout(id uuid.UUID) (int, error) {
 		return -1, err
 	}
 	return workout_number, nil
+}
+
+func (d *Database) getWorkouts(id uuid.UUID) (*WorkoutMap, error) {
+	// a list of workout
+	// what is a workout?
+	// a workout number, with all the sets, reps and names of exercises with that workout
+	// can map a workout number to a list of lists
+
+	workouts := make(WorkoutMap)
+
+	// get all workout numbers with the uuid
+	query := `
+		SELECT workout_number
+		FROM workouts
+		WHERE
+			user_id = $1;
+	`
+	rows, err := d.db.Query(query, id);
+	if (err != nil) {
+		printError(err, "error when getting workout numbers using uuid")
+		return nil, err
+	}
+
+	for (rows.Next()) {
+		var workout_number int
+		if err := rows.Scan(&workout_number); err != nil {
+			printError(err, "error when scanning workout number from a row")
+			return nil, err
+		}
+		workouts[workout_number] = make([]Set, 0)
+	}
+
+	// for each workout number, get the set numbers with the same uuid and workout number
+	for k, v := range workouts {
+		query := `
+		SELECT set_number, name, reps
+		FROM sets
+		WHERE
+			user_id = $1 and workout_number = $2;
+		`
+		rows, err := d.db.Query(query, id, k);
+		if (err != nil) {
+			printError(err, "error when getting workout numbers using uuid")
+			return nil, err
+		}
+
+		for (rows.Next()) {
+			var (
+				set_number int
+				name string
+				reps int
+			)
+			if err := rows.Scan(&set_number, &name, & reps); err != nil {
+				printError(err, "error when scanning workout number from a row")
+				return nil, err
+			}
+
+			v = append(v, Set{
+				Set_number: set_number,
+				Name: name,
+				Reps: reps,
+			})
+		}
+
+		workouts[k] = v
+	}
+
+	return &workouts, nil
 }
 
 func (d *Database) createSet(id uuid.UUID, workout_number int, reps int, name string) (int, error) {
