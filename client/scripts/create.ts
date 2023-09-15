@@ -6,6 +6,12 @@ let workout_number = -1;
 const createWorkoutForm = document.getElementById("create-workout-form")
 createWorkoutForm.addEventListener("submit", createSet)
 
+const doneButton = document.getElementById("done-button");
+doneButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  window.location.href = '/home';
+})
+
 async function createWorkout() {
   const token = Cookies.get("token");
   if (!token) {

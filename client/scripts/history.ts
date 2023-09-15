@@ -33,7 +33,7 @@ async function getWorkouts() {
   console.log(workouts)
 
   let html = ""
-  html += `<p class="page-heading">Total workouts: ${Object.keys(workouts).length}</p>`
+  html += `<h1 class="text-primary page-heading">Total workouts: ${Object.keys(workouts).length}</h1>`
 
   for (const workout_number in workouts) {
     let workout_html = `

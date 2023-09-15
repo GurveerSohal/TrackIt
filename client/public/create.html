@@ -1,26 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Create a workout</title>
     <script type="module" src="../app.ts"></script>
     <script type="module" src="../scripts/check-token.ts"></script>
     <script type="module" src="../scripts/create.ts"></script>
-</head>
-<body>
+  </head>
+  <body>
+    <h1 class="text-primary page-heading">Create a workout!</h1>
+    <p>Add your sets one at a time.</p>
     <form id="create-workout-form">
-        <div>
-            <label for="name-input">Name</label>
-            <input id="name-input" type="text" placeholder="name">
-        </div>
+      <div class="form-container">
+        <label for="name-input" class="text-info">Name</label>
+        <input id="name-input" type="text" placeholder="name" />
 
-        <div>
-            <label for="reps-input">Reps</label>
-            <input id="reps-input" type="text" placeholder="reps">
-        </div>
+        <label for="reps-input" class="text-info">Reps</label>
+        <input id="reps-input" type="text" placeholder="reps" />
 
-        <button type="submit">create set</button>
+        <button type="submit" class="btn btn-primary">Create Set</button>
+      </div>
     </form>
-</body>
+
+    <div class="buttons-div small">
+        <button class="btn btn-primary" id="done-button">Done!</button>
+    </div>
+  </body>
 </html>
