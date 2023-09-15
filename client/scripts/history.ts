@@ -29,7 +29,45 @@ async function getWorkouts() {
     return
   }
 
-  workoutHistoryDiv.innerHTML = JSON.stringify(data)
+  const workouts = data.workouts
+  console.log(workouts)
+
+  let html = ""
+  html += `<p class="page-heading">Total workouts: ${Object.keys(workouts).length}</p>`
+
+  for (const workout_number in workouts) {
+    let workout_html = `
+    <table>
+      <tr>
+        <th colspan="3">
+          Workout Number: ${workout_number}
+        </th>
+      </tr>
+    `
+    workout_html += `
+    <tr>
+      <th>Set</th>
+      <th>Name</th>
+      <th>Reps</th>
+    </tr>
+    `
+    const set_array = workouts[workout_number]
+    set_array.forEach(set => {
+      workout_html += `
+      <tr>
+        <td>${set.set_number}</td>
+        <td>${set.name}</td>
+        <td>${set.reps}</td>
+      </tr>
+      `
+    });
+
+    workout_html += `</table>`
+
+    html += workout_html
+  }
+
+  workoutHistoryDiv.innerHTML = html
 }
 
 getWorkouts()
